@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrettyBoy — Train</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="app-header">
+      <div class="logo">PRETTY<span>BOY</span></div>
+      <div class="header-actions">
+        <!-- Light/Dark toggle -->
+        <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="sunIcon">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="moonIcon" style="display:none">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <!-- Workout history -->
+        <button class="icon-btn" id="historyBtn" aria-label="Workout history">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </button>
+        <!-- Settings -->
+        <a href="settings.html" class="icon-btn" aria-label="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- Greeting -->
+    <p class="text-muted" id="greeting"></p>
+
+    <!-- Week Strip -->
+    <div class="week-strip" id="weekStrip"></div>
+
+    <!-- Phase Card -->
+    <div class="phase-card" id="phaseCard">
+      <div>
+        <div class="phase-label" id="phaseLabel">WEEK 1</div>
+        <div class="phase-title" id="phaseTitle">LOADING...</div>
+      </div>
+      <div class="phase-dots" id="phaseDots"></div>
+    </div>
+
+    <!-- Workout Content -->
+    <div id="workoutContent" class="mt-16"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { requireAuth, getProfile, showToast } from './js/shared.js'
+    import { fetchWorkouts, getWorkoutForDay, getDayNumber, getProgramWeek, getMaxWeek } from './js/sheets.js'
+
+    const session = await requireAuth()
+    if (!session) throw new Error('Not authenticated')
+
+    const profile = await getProfile()
+    if (!profile) {
+      showToast('Profile not found', 'error')
+      throw new Error('No profile')
+    }
+
+    const schedule = profile.schedule || ['monday', 'tuesday', 'thursday', 'friday']
+    const startDate = profile.program_start_date || new Date().toISOString().split('T')[0]
+
+    // Greeting
+    document.getElementById('greeting').textContent = `Hey, ${profile.display_name}`
+
+    // State
+    let currentWeekStart = getWeekStart(new Date())
+    let selectedDate = new Date()
+    let allWorkouts = []
+
+    function getWeekStart(date) {
+      const d = new Date(date)
+      d.setHours(0, 0, 0, 0)
+      const day = d.getDay()
+      d.setDate(d.getDate() - day)
+      return d
+    }
+
+    const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const DAY_ABBR = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
+    function renderWeekStrip() {
+      const strip = document.getElementById('weekStrip')
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      let html = `<button class="week-nav" id="prevWeek">&lsaquo;</button>`
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(currentWeekStart)
+        d.setDate(d.getDate() + i)
+        const dayName = DAY_NAMES[d.getDay()]
+        const isToday = d.getTime() === today.getTime()
+        const isSelected = d.toDateString() === selectedDate.toDateString()
+        const hasWorkout = schedule.includes(dayName)
+
+        let cls = 'week-day'
+        if (isToday) cls += ' today'
+        else if (isSelected) cls += ' selected'
+        if (hasWorkout) cls += ' has-workout'
+
+        html += `
+          <div class="${cls}" data-date="${d.toISOString()}">
+            <span class="day-label">${DAY_ABBR[d.getDay()]}</span>
+            <span class="day-num">${d.getDate()}</span>
+            <span class="day-dot"></span>
+          </div>`
+      }
+
+      html += `<button class="week-nav" id="nextWeek">&rsaquo;</button>`
+      strip.innerHTML = html
+
+      // Day click
+      strip.querySelectorAll('.week-day').forEach(el => {
+        el.addEventListener('click', () => {
+          selectedDate = new Date(el.dataset.date)
+          renderWeekStrip()
+          renderWorkout()
+        })
+      })
+
+      // Week nav
+      document.getElementById('prevWeek').addEventListener('click', () => {
+        currentWeekStart.setDate(currentWeekStart.getDate() - 7)
+        selectedDate = new Date(currentWeekStart)
+        renderWeekStrip()
+        renderWorkout()
+      })
+      document.getElementById('nextWeek').addEventListener('click', () => {
+        currentWeekStart.setDate(currentWeekStart.getDate() + 7)
+        selectedDate = new Date(currentWeekStart)
+        renderWeekStrip()
+        renderWorkout()
+      })
+    }
+
+    function renderPhase(programWeek, maxWeek) {
+      document.getElementById('phaseLabel').textContent = `WEEK ${programWeek} OF ${maxWeek}`
+      document.getElementById('phaseTitle').textContent = `WEEK ${programWeek}`
+
+      const dotsEl = document.getElementById('phaseDots')
+      let dots = ''
+      const total = Math.min(maxWeek, 8)
+      for (let i = 1; i <= total; i++) {
+        dots += `<div class="phase-dot${i <= programWeek ? ' active' : ''}"></div>`
+      }
+      dotsEl.innerHTML = dots
+    }
+
+    function renderWorkout() {
+      const container = document.getElementById('workoutContent')
+      const dayName = DAY_NAMES[selectedDate.getDay()]
+      const dayNum = getDayNumber(schedule, dayName)
+      const programWeek = getProgramWeek(startDate)
+      const maxWeek = getMaxWeek(allWorkouts)
+
+      renderPhase(programWeek, maxWeek)
+
+      if (dayNum === 0) {
+        container.innerHTML = `
+          <div class="rest-day">
+            <h2>REST DAY</h2>
+            <p>No session scheduled for ${DAY_ABBR[selectedDate.getDay()]}.<br>Recover. Stretch. Come back stronger.</p>
+          </div>`
+        return
+      }
+
+      const exercises = getWorkoutForDay(allWorkouts, programWeek, dayNum)
+
+      if (exercises.length === 0) {
+        container.innerHTML = `
+          <div class="rest-day">
+            <h2>NO PROGRAM</h2>
+            <p>No workouts found for Week ${programWeek}, Day ${dayNum}.<br>Check your Google Sheet or settings.</p>
+          </div>`
+        return
+      }
+
+      const title = exercises[0].workoutTitle
+      const dayLabel = DAY_ABBR[selectedDate.getDay()]
+
+      let html = `
+        <div class="workout-header flex justify-between items-center">
+          <div>
+            <div class="workout-day-label">${dayLabel}</div>
+            <div class="workout-title">${title}</div>
+          </div>
+          <div class="completion-badge">
+            <span>${exercises.length}</span>
+            <span class="total">exercises</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-12 mt-16">`
+
+      exercises.forEach((ex, i) => {
+        html += `
+          <div class="exercise-card">
+            <div class="exercise-num">${String(i + 1).padStart(2, '0')}</div>
+            <div class="exercise-body">
+              <span class="exercise-name">${ex.exercise}</span>
+              ${ex.equipment ? `<span class="exercise-equip">${ex.equipment}</span>` : ''}
+              <div class="exercise-stats">
+                ${ex.sets ? `<div class="exercise-stat"><label>Sets</label><span>${ex.sets}</span></div>` : ''}
+                ${ex.reps ? `<div class="exercise-stat"><label>Reps</label><span>${ex.reps}</span></div>` : ''}
+                ${ex.rest ? `<div class="exercise-stat"><label>Rest</label><span>${ex.rest}</span></div>` : ''}
+              </div>
+              ${ex.notes ? `<div class="exercise-note">${ex.notes}</div>` : ''}
+            </div>
+          </div>`
+      })
+
+      html += `</div>`
+      container.innerHTML = html
+    }
+
+    // Load workouts from Google Sheet
+    allWorkouts = await fetchWorkouts()
+
+    // If no sheet configured, show sample data
+    if (allWorkouts.length === 0) {
+      allWorkouts = getSampleWorkouts()
+    }
+
+    renderWeekStrip()
+    renderWorkout()
+
+    // Theme toggle
+    function initTheme() {
+      const saved = localStorage.getItem('pb-theme') || 'light'
+      document.documentElement.setAttribute('data-theme', saved)
+      updateThemeIcon(saved)
+    }
+
+    function updateThemeIcon(theme) {
+      document.getElementById('sunIcon').style.display = theme === 'light' ? 'block' : 'none'
+      document.getElementById('moonIcon').style.display = theme === 'dark' ? 'block' : 'none'
+    }
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light'
+      const next = current === 'light' ? 'dark' : 'light'
+      document.documentElement.setAttribute('data-theme', next)
+      localStorage.setItem('pb-theme', next)
+      updateThemeIcon(next)
+    })
+
+    initTheme()
+
+    // History button (placeholder)
+    document.getElementById('historyBtn').addEventListener('click', () => {
+      import('./js/shared.js').then(m => m.showToast('Workout history coming soon'))
+    })
+
+    // Sample data for demo
+    function getSampleWorkouts() {
+      return [
+        { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 1, exercise: 'Back Squat', equipment: 'Barbell', sets: '4', reps: '6', rest: '3min', notes: 'Below parallel. Controlled descent.' },
+        { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 2, exercise: 'DB Bench Press', equipment: 'Dumbbells', sets: '3', reps: '10-12', rest: '90s', notes: 'Full ROM. Squeeze at top.' },
+        { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 3, exercise: 'Bent Over Row', equipment: 'Barbell', sets: '3', reps: '8-10', rest: '90s', notes: 'Drive elbows back.' },
+        { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 4, exercise: 'Walking Lunges', equipment: 'Dumbbells', sets: '3', reps: '12 ea.', rest: '60s', notes: 'Knee tracks over toe.' },
+        { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 5, exercise: 'Plank Hold', equipment: '', sets: '3', reps: '45s', rest: '30s', notes: 'Tight core, flat back.' },
+        { week: 1, day: 2, workoutTitle: 'Day 2 — Conditioning', order: 1, exercise: 'KB Swings', equipment: 'Kettlebell', sets: '5', reps: '15', rest: '60s', notes: 'Hip hinge, not a squat.' },
+        { week: 1, day: 2, workoutTitle: 'Day 2 — Conditioning', order: 2, exercise: 'Box Jumps', equipment: 'Plyo Box', sets: '4', reps: '8', rest: '90s', notes: 'Step down, don\'t bounce.' },
+        { week: 1, day: 2, workoutTitle: 'Day 2 — Conditioning', order: 3, exercise: 'Battle Ropes', equipment: '', sets: '4', reps: '30s', rest: '45s', notes: 'Alternating waves.' },
+        { week: 1, day: 2, workoutTitle: 'Day 2 — Conditioning', order: 4, exercise: 'Burpees', equipment: '', sets: '3', reps: '10', rest: '60s', notes: 'Full extension at top.' },
+        { week: 1, day: 3, workoutTitle: 'Day 3 — Upper Body', order: 1, exercise: 'Overhead Press', equipment: 'Barbell', sets: '4', reps: '6-8', rest: '2min', notes: 'Strict press, no leg drive.' },
+        { week: 1, day: 3, workoutTitle: 'Day 3 — Upper Body', order: 2, exercise: 'Pull-Ups', equipment: 'Pull-Up Bar', sets: '4', reps: '8-10', rest: '90s', notes: 'Full hang to chin over bar.' },
+        { week: 1, day: 3, workoutTitle: 'Day 3 — Upper Body', order: 3, exercise: 'DB Lateral Raise', equipment: 'Dumbbells', sets: '3', reps: '12-15', rest: '45s', notes: 'Slight bend in elbows.' },
+        { week: 1, day: 3, workoutTitle: 'Day 3 — Upper Body', order: 4, exercise: 'Tricep Dips', equipment: 'Dip Station', sets: '3', reps: '10-12', rest: '60s', notes: 'Lean slightly forward.' },
+        { week: 1, day: 4, workoutTitle: 'Day 4 — Lower Body', order: 1, exercise: 'Deadlift', equipment: 'Barbell', sets: '4', reps: '5', rest: '3min', notes: 'Flat back. Drive through heels.' },
+        { week: 1, day: 4, workoutTitle: 'Day 4 — Lower Body', order: 2, exercise: 'Bulgarian Split Squat', equipment: 'Dumbbells', sets: '3', reps: '10 ea.', rest: '90s', notes: 'Back foot elevated.' },
+        { week: 1, day: 4, workoutTitle: 'Day 4 — Lower Body', order: 3, exercise: 'Hip Thrust', equipment: 'Barbell', sets: '3', reps: '12', rest: '60s', notes: 'Full hip extension at top.' },
+        { week: 1, day: 4, workoutTitle: 'Day 4 — Lower Body', order: 4, exercise: 'Calf Raises', equipment: '', sets: '4', reps: '15', rest: '45s', notes: 'Slow eccentric, full stretch.' },
+      ]
+    }
+  </script>
+</body>
+</html>

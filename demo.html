@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrettyBoy — Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+</head>
+<body>
+  <div class="container">
+    <div class="app-header">
+      <div class="logo">PRETTY<span>BOY</span></div>
+      <div class="header-actions">
+        <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="sunIcon">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="moonIcon" style="display:none">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="historyBtn" aria-label="Workout history">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </button>
+        <a href="settings.html" class="icon-btn" aria-label="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <p class="text-muted" id="greeting">Hey, Tyler</p>
+
+    <div class="week-strip" id="weekStrip"></div>
+
+    <div class="phase-card">
+      <div>
+        <div class="phase-label">WEEK 1 OF 4</div>
+        <div class="phase-title">WEEK 1</div>
+      </div>
+      <div class="phase-dots">
+        <div class="phase-dot active"></div>
+        <div class="phase-dot"></div>
+        <div class="phase-dot"></div>
+        <div class="phase-dot"></div>
+      </div>
+    </div>
+
+    <div id="workoutContent" class="mt-16"></div>
+  </div>
+
+  <script type="module">
+    const schedule = ['monday', 'tuesday', 'thursday', 'friday']
+    const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const DAY_ABBR = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
+    let currentWeekStart = getWeekStart(new Date())
+    let selectedDate = new Date()
+
+    function getWeekStart(date) {
+      const d = new Date(date)
+      d.setHours(0, 0, 0, 0)
+      d.setDate(d.getDate() - d.getDay())
+      return d
+    }
+
+    function renderWeekStrip() {
+      const strip = document.getElementById('weekStrip')
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      let html = '<button class="week-nav" id="prevWeek">&lsaquo;</button>'
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(currentWeekStart)
+        d.setDate(d.getDate() + i)
+        const dayName = DAY_NAMES[d.getDay()]
+        const isToday = d.getTime() === today.getTime()
+        const isSelected = d.toDateString() === selectedDate.toDateString()
+        const hasWorkout = schedule.includes(dayName)
+
+        let cls = 'week-day'
+        if (isToday) cls += ' today'
+        else if (isSelected) cls += ' selected'
+        if (hasWorkout) cls += ' has-workout'
+
+        html += `<div class="${cls}" data-date="${d.toISOString()}">
+          <span class="day-label">${DAY_ABBR[d.getDay()]}</span>
+          <span class="day-num">${d.getDate()}</span>
+          <span class="day-dot"></span>
+        </div>`
+      }
+      html += '<button class="week-nav" id="nextWeek">&rsaquo;</button>'
+      strip.innerHTML = html
+
+      strip.querySelectorAll('.week-day').forEach(el => {
+        el.addEventListener('click', () => {
+          selectedDate = new Date(el.dataset.date)
+          renderWeekStrip()
+          renderWorkout()
+        })
+      })
+
+      document.getElementById('prevWeek').addEventListener('click', () => {
+        currentWeekStart.setDate(currentWeekStart.getDate() - 7)
+        selectedDate = new Date(currentWeekStart)
+        renderWeekStrip()
+        renderWorkout()
+      })
+      document.getElementById('nextWeek').addEventListener('click', () => {
+        currentWeekStart.setDate(currentWeekStart.getDate() + 7)
+        selectedDate = new Date(currentWeekStart)
+        renderWeekStrip()
+        renderWorkout()
+      })
+    }
+
+    const sampleWorkouts = [
+      { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 1, exercise: 'Back Squat', equipment: 'Barbell', sets: '4', reps: '6', rest: '3min', notes: 'Below parallel. Controlled descent.' },
+      { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 2, exercise: 'DB Bench Press', equipment: 'Dumbbells', sets: '3', reps: '10-12', rest: '90s', notes: 'Full ROM. Squeeze at top.' },
+      { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 3, exercise: 'Bent Over Row', equipment: 'Barbell', sets: '3', reps: '8-10', rest: '90s', notes: 'Drive elbows back.' },
+      { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 4, exercise: 'Walking Lunges', equipment: 'Dumbbells', sets: '3', reps: '12 ea.', rest: '60s', notes: 'Knee tracks over toe.' },
+      { week: 1, day: 1, workoutTitle: 'Day 1 — Strength', order: 5, exercise: 'Plank Hold', equipment: '', sets: '3', reps: '45s', rest: '30s', notes: 'Tight core, flat back.' },
+    ]
+
+    function renderWorkout() {
+      const container = document.getElementById('workoutContent')
+      const dayName = DAY_NAMES[selectedDate.getDay()]
+      const dayIdx = schedule.indexOf(dayName)
+      const dayNum = dayIdx >= 0 ? dayIdx + 1 : 0
+
+      if (dayNum === 0) {
+        container.innerHTML = `<div class="rest-day"><h2>REST DAY</h2><p>No session scheduled.<br>Recover. Stretch. Come back stronger.</p></div>`
+        return
+      }
+
+      const exercises = sampleWorkouts.filter(w => w.day === dayNum)
+      if (exercises.length === 0) {
+        container.innerHTML = `<div class="rest-day"><h2>NO PROGRAM</h2><p>No workouts found for this day.</p></div>`
+        return
+      }
+
+      const title = exercises[0].workoutTitle
+      const dayLabel = DAY_ABBR[selectedDate.getDay()]
+
+      let html = `<div class="workout-header flex justify-between items-center">
+        <div>
+          <div class="workout-day-label">${dayLabel}</div>
+          <div class="workout-title">${title}</div>
+        </div>
+        <div class="completion-badge">
+          <span>${exercises.length}</span>
+          <span class="total">exercises</span>
+        </div>
+      </div>
+      <div class="flex flex-col gap-12 mt-16">`
+
+      exercises.forEach((ex, i) => {
+        html += `<div class="exercise-card">
+          <div class="exercise-num">${String(i + 1).padStart(2, '0')}</div>
+          <div class="exercise-body">
+            <span class="exercise-name">${ex.exercise}</span>
+            ${ex.equipment ? `<span class="exercise-equip">${ex.equipment}</span>` : ''}
+            <div class="exercise-stats">
+              ${ex.sets ? `<div class="exercise-stat"><label>Sets</label><span>${ex.sets}</span></div>` : ''}
+              ${ex.reps ? `<div class="exercise-stat"><label>Reps</label><span>${ex.reps}</span></div>` : ''}
+              ${ex.rest ? `<div class="exercise-stat"><label>Rest</label><span>${ex.rest}</span></div>` : ''}
+            </div>
+            ${ex.notes ? `<div class="exercise-note">${ex.notes}</div>` : ''}
+          </div>
+        </div>`
+      })
+
+      html += '</div>'
+      container.innerHTML = html
+    }
+
+    renderWeekStrip()
+    renderWorkout()
+
+    // Theme toggle
+    const saved = localStorage.getItem('pb-theme') || 'light'
+    document.documentElement.setAttribute('data-theme', saved)
+    document.getElementById('sunIcon').style.display = saved === 'light' ? 'block' : 'none'
+    document.getElementById('moonIcon').style.display = saved === 'dark' ? 'block' : 'none'
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light'
+      const next = current === 'light' ? 'dark' : 'light'
+      document.documentElement.setAttribute('data-theme', next)
+      localStorage.setItem('pb-theme', next)
+      document.getElementById('sunIcon').style.display = next === 'light' ? 'block' : 'none'
+      document.getElementById('moonIcon').style.display = next === 'dark' ? 'block' : 'none'
+    })
+  </script>
+</body>
+</html>

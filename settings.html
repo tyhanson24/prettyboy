@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrettyBoy — Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="app-header">
+      <h1 style="font-size:1.5rem;font-weight:800;text-transform:uppercase">Settings</h1>
+      <a href="dashboard.html" class="icon-btn" aria-label="Back to training">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+        </svg>
+      </a>
+    </div>
+
+    <div class="flex flex-col gap-16 mt-16">
+      <!-- Name -->
+      <div class="settings-section">
+        <h3>Display Name</h3>
+        <div class="input-group">
+          <input type="text" id="nameInput" placeholder="Your name">
+        </div>
+      </div>
+
+      <!-- Training Days -->
+      <div class="settings-section">
+        <h3>Training Days</h3>
+        <div class="day-toggles" id="dayToggles">
+          <button class="day-toggle" data-day="sunday">SUN</button>
+          <button class="day-toggle" data-day="monday">MON</button>
+          <button class="day-toggle" data-day="tuesday">TUE</button>
+          <button class="day-toggle" data-day="wednesday">WED</button>
+          <button class="day-toggle" data-day="thursday">THU</button>
+          <button class="day-toggle" data-day="friday">FRI</button>
+          <button class="day-toggle" data-day="saturday">SAT</button>
+        </div>
+        <p class="text-muted mt-8">Sessions rotate across your training days.</p>
+      </div>
+
+      <!-- Program Start Date -->
+      <div class="settings-section">
+        <h3>Program Start Date</h3>
+        <div class="input-group">
+          <input type="date" id="startDateInput">
+        </div>
+        <p class="text-muted mt-8">Week 1 starts from this date.</p>
+      </div>
+
+      <!-- Save -->
+      <button class="btn btn-primary" id="saveBtn">Save Changes</button>
+
+      <!-- Sign Out -->
+      <button class="btn btn-danger" id="signOutBtn">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { supabase } from './js/supabase-client.js'
+    import { signOut } from './js/auth.js'
+    import { requireAuth, getProfile, showToast } from './js/shared.js'
+
+    const session = await requireAuth()
+    if (!session) throw new Error('Not authenticated')
+
+    const profile = await getProfile()
+    if (!profile) {
+      showToast('Profile not found', 'error')
+      throw new Error('No profile')
+    }
+
+    // Populate fields
+    document.getElementById('nameInput').value = profile.display_name || ''
+    document.getElementById('startDateInput').value = profile.program_start_date || new Date().toISOString().split('T')[0]
+
+    // Set active training days
+    const schedule = profile.schedule || ['monday', 'tuesday', 'thursday', 'friday']
+    document.querySelectorAll('.day-toggle').forEach(btn => {
+      if (schedule.includes(btn.dataset.day)) btn.classList.add('active')
+    })
+
+    // Day toggle clicks
+    document.getElementById('dayToggles').addEventListener('click', e => {
+      const btn = e.target.closest('.day-toggle')
+      if (btn) btn.classList.toggle('active')
+    })
+
+    // Save
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const name = document.getElementById('nameInput').value.trim()
+      const startDate = document.getElementById('startDateInput').value
+      const activeDays = [...document.querySelectorAll('.day-toggle.active')]
+        .map(b => b.dataset.day)
+
+      if (!name) return showToast('Enter a name', 'error')
+      if (activeDays.length === 0) return showToast('Pick at least 1 training day', 'error')
+
+      const btn = document.getElementById('saveBtn')
+      btn.disabled = true
+      btn.textContent = 'Saving...'
+
+      const { error } = await supabase
+        .from('prettyboy_profiles')
+        .update({
+          display_name: name,
+          schedule: activeDays,
+          program_start_date: startDate
+        })
+        .eq('id', session.user.id)
+
+      if (error) {
+        showToast(error.message, 'error')
+      } else {
+        showToast('Settings saved')
+      }
+
+      btn.disabled = false
+      btn.textContent = 'Save Changes'
+    })
+
+    // Sign out
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      await signOut()
+      window.location.href = 'index.html'
+    })
+  </script>
+</body>
+</html>

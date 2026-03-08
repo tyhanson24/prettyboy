@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrettyBoy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+</head>
+<body>
+  <div class="onboarding">
+    <div class="onboarding-card">
+      <div class="logo text-center">PRETTY<span>BOY</span></div>
+
+      <div class="step-indicator">
+        <div class="step-dot active" id="dot1"></div>
+        <div class="step-dot" id="dot2"></div>
+      </div>
+
+      <!-- Step 1: Account -->
+      <div class="step active" id="step1">
+        <div class="form-fields">
+          <div class="input-group">
+            <label>First Name</label>
+            <input type="text" id="nameInput" placeholder="Your name" autocomplete="given-name">
+          </div>
+          <div class="input-group">
+            <label>Email</label>
+            <input type="email" id="emailInput" placeholder="you@email.com" autocomplete="email">
+          </div>
+          <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="passwordInput" placeholder="Min 6 characters" autocomplete="new-password">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="nextBtn">Next</button>
+        <div class="toggle-auth mt-16">
+          Already have an account? <a href="#" id="toggleLogin">Log in</a>
+        </div>
+      </div>
+
+      <!-- Step 1b: Login -->
+      <div class="step" id="stepLogin">
+        <div class="form-fields">
+          <div class="input-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="you@email.com" autocomplete="email">
+          </div>
+          <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="loginBtn">Log In</button>
+        <div class="toggle-auth mt-16">
+          Don't have an account? <a href="#" id="toggleSignup">Sign up</a>
+        </div>
+      </div>
+
+      <!-- Step 2: Schedule -->
+      <div class="step" id="step2">
+        <h2 class="text-center mb-16">Pick Your Training Days</h2>
+        <div class="day-toggles" id="dayToggles">
+          <button class="day-toggle" data-day="sunday">SUN</button>
+          <button class="day-toggle active" data-day="monday">MON</button>
+          <button class="day-toggle active" data-day="tuesday">TUE</button>
+          <button class="day-toggle" data-day="wednesday">WED</button>
+          <button class="day-toggle active" data-day="thursday">THU</button>
+          <button class="day-toggle active" data-day="friday">FRI</button>
+          <button class="day-toggle" data-day="saturday">SAT</button>
+        </div>
+        <p class="text-muted text-center mt-8">4 days recommended. Tap to customize.</p>
+        <button class="btn btn-primary mt-24" id="startBtn">Start Training</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { signUp, signIn, getSession } from './js/auth.js'
+    import { showToast } from './js/shared.js'
+
+    // If already logged in, go to dashboard
+    const session = await getSession()
+    if (session) window.location.href = 'dashboard.html'
+
+    const step1 = document.getElementById('step1')
+    const step2 = document.getElementById('step2')
+    const stepLogin = document.getElementById('stepLogin')
+    const dot1 = document.getElementById('dot1')
+    const dot2 = document.getElementById('dot2')
+
+    function showStep(step) {
+      ;[step1, step2, stepLogin].forEach(s => s.classList.remove('active'))
+      step.classList.add('active')
+      dot1.classList.toggle('active', step === step1 || step === stepLogin)
+      dot2.classList.toggle('active', step === step2)
+    }
+
+    // Toggle login/signup
+    document.getElementById('toggleLogin').addEventListener('click', e => {
+      e.preventDefault()
+      showStep(stepLogin)
+    })
+    document.getElementById('toggleSignup').addEventListener('click', e => {
+      e.preventDefault()
+      showStep(step1)
+    })
+
+    // Step 1 → Step 2
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      const name = document.getElementById('nameInput').value.trim()
+      const email = document.getElementById('emailInput').value.trim()
+      const pw = document.getElementById('passwordInput').value
+
+      if (!name) return showToast('Enter your name', 'error')
+      if (!email) return showToast('Enter your email', 'error')
+      if (pw.length < 6) return showToast('Password must be 6+ characters', 'error')
+
+      showStep(step2)
+    })
+
+    // Day toggles
+    document.getElementById('dayToggles').addEventListener('click', e => {
+      const btn = e.target.closest('.day-toggle')
+      if (btn) btn.classList.toggle('active')
+    })
+
+    // Start Training (signup)
+    document.getElementById('startBtn').addEventListener('click', async () => {
+      const name = document.getElementById('nameInput').value.trim()
+      const email = document.getElementById('emailInput').value.trim()
+      const pw = document.getElementById('passwordInput').value
+
+      const activeDays = [...document.querySelectorAll('.day-toggle.active')]
+        .map(b => b.dataset.day)
+
+      if (activeDays.length === 0) return showToast('Pick at least 1 training day', 'error')
+
+      const btn = document.getElementById('startBtn')
+      btn.disabled = true
+      btn.textContent = 'Creating account...'
+
+      try {
+        await signUp(email, pw, name, activeDays)
+        window.location.href = 'dashboard.html'
+      } catch (err) {
+        showToast(err.message, 'error')
+        btn.disabled = false
+        btn.textContent = 'Start Training'
+      }
+    })
+
+    // Login
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('loginEmail').value.trim()
+      const pw = document.getElementById('loginPassword').value
+
+      if (!email || !pw) return showToast('Enter email and password', 'error')
+
+      const btn = document.getElementById('loginBtn')
+      btn.disabled = true
+      btn.textContent = 'Logging in...'
+
+      try {
+        await signIn(email, pw)
+        window.location.href = 'dashboard.html'
+      } catch (err) {
+        showToast(err.message, 'error')
+        btn.disabled = false
+        btn.textContent = 'Log In'
+      }
+    })
+
+    // Enter key support
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          if (step1.classList.contains('active')) document.getElementById('nextBtn').click()
+          else if (stepLogin.classList.contains('active')) document.getElementById('loginBtn').click()
+        }
+      })
+    })
+  </script>
+</body>
+</html>

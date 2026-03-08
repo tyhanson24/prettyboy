@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "prettyboy-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "/Users/tyhanson/Documents/PrettyBoy", "-l", "3456", "--no-clipboard"],
+      "port": 3456
+    }
+  ]
+}
