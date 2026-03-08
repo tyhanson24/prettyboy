@@ -60,6 +60,7 @@
   <div class="toast" id="toast"></div>
 
   <script type="module">
+    import { supabase } from './js/supabase-client.js'
     import { requireAuth, getProfile, showToast } from './js/shared.js'
     import { fetchWorkouts, getWorkoutForDay, getDayNumber, getProgramWeek, getMaxWeek } from './js/sheets.js'
 
@@ -72,6 +73,7 @@
       throw new Error('No profile')
     }
 
+    const userId = session.user.id
     const schedule = profile.schedule || ['monday', 'tuesday', 'thursday', 'friday']
     const startDate = profile.program_start_date || new Date().toISOString().split('T')[0]
 
@@ -82,6 +84,7 @@
     let currentWeekStart = getWeekStart(new Date())
     let selectedDate = new Date()
     let allWorkouts = []
+    let dayLogs = {} // keyed by exercise_order
 
     function getWeekStart(date) {
       const d = new Date(date)
@@ -162,12 +165,75 @@
       dotsEl.innerHTML = dots
     }
 
-    function renderWorkout() {
+    // --- Exercise Log Functions ---
+    async function loadDayLogs(dateStr, dayNum) {
+      dayLogs = {}
+      const { data } = await supabase
+        .from('exercise_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('log_date', dateStr)
+        .eq('day_num', dayNum)
+      if (data) {
+        data.forEach(log => { dayLogs[log.exercise_order] = log })
+      }
+    }
+
+    async function toggleComplete(exercise, dateStr, programWeek, dayNum) {
+      const order = exercise.order
+      const existing = dayLogs[order]
+
+      if (existing?.completed) {
+        // Uncomplete
+        await supabase.from('exercise_logs').update({ completed: false, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+        dayLogs[order] = { ...existing, completed: false }
+      } else if (existing) {
+        // Mark complete
+        await supabase.from('exercise_logs').update({ completed: true, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+        dayLogs[order] = { ...existing, completed: true }
+      } else {
+        // Insert new log
+        const log = {
+          user_id: userId, log_date: dateStr, program_week: programWeek,
+          day_num: dayNum, exercise_order: order, exercise_name: exercise.exercise, completed: true
+        }
+        const { data } = await supabase.from('exercise_logs').insert(log).select().single()
+        if (data) dayLogs[order] = data
+      }
+      renderWorkout()
+    }
+
+    let weightSaveTimer = null
+    function saveWeight(exercise, dateStr, programWeek, dayNum, weight) {
+      clearTimeout(weightSaveTimer)
+      weightSaveTimer = setTimeout(async () => {
+        const order = exercise.order
+        const existing = dayLogs[order]
+        if (existing) {
+          await supabase.from('exercise_logs').update({ weight, updated_at: new Date().toISOString() })
+            .eq('id', existing.id)
+          dayLogs[order] = { ...existing, weight }
+        } else {
+          const log = {
+            user_id: userId, log_date: dateStr, program_week: programWeek,
+            day_num: dayNum, exercise_order: order, exercise_name: exercise.exercise,
+            completed: false, weight
+          }
+          const { data } = await supabase.from('exercise_logs').insert(log).select().single()
+          if (data) dayLogs[order] = data
+        }
+      }, 600)
+    }
+
+    async function renderWorkout() {
       const container = document.getElementById('workoutContent')
       const dayName = DAY_NAMES[selectedDate.getDay()]
       const dayNum = getDayNumber(schedule, dayName)
       const programWeek = getProgramWeek(startDate)
       const maxWeek = getMaxWeek(allWorkouts)
+      const dateStr = selectedDate.toISOString().split('T')[0]
 
       renderPhase(programWeek, maxWeek)
 
@@ -191,8 +257,13 @@
         return
       }
 
+      // Load logs for this day
+      await loadDayLogs(dateStr, dayNum)
+
       const title = exercises[0].workoutTitle
       const dayLabel = DAY_ABBR[selectedDate.getDay()]
+      const completedCount = exercises.filter(ex => dayLogs[ex.order]?.completed).length
+      const allDone = completedCount === exercises.length
 
       let html = `
         <div class="workout-header flex justify-between items-center">
@@ -200,17 +271,23 @@
             <div class="workout-day-label">${dayLabel}</div>
             <div class="workout-title">${title}</div>
           </div>
-          <div class="completion-badge">
-            <span>${exercises.length}</span>
-            <span class="total">exercises</span>
+          <div class="completion-badge${allDone ? ' all-done' : ''}">
+            <span>${completedCount}</span>
+            <span class="total">/ ${exercises.length}</span>
           </div>
         </div>
         <div class="flex flex-col gap-12 mt-16">`
 
+      const checkSvg = `<svg class="check-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+
       exercises.forEach((ex, i) => {
+        const log = dayLogs[ex.order]
+        const done = log?.completed
+        const weight = log?.weight || ''
+
         html += `
-          <div class="exercise-card">
-            <div class="exercise-num">${String(i + 1).padStart(2, '0')}</div>
+          <div class="exercise-card${done ? ' completed' : ''}" data-idx="${i}">
+            <div class="exercise-num" data-toggle="${i}">${done ? checkSvg : String(i + 1).padStart(2, '0')}</div>
             <div class="exercise-body">
               <span class="exercise-name">${ex.exercise}</span>
               ${ex.equipment ? `<span class="exercise-equip">${ex.equipment}</span>` : ''}
@@ -219,6 +296,10 @@
                 ${ex.reps ? `<div class="exercise-stat"><label>Reps</label><span>${ex.reps}</span></div>` : ''}
                 ${ex.rest ? `<div class="exercise-stat"><label>Rest</label><span>${ex.rest}</span></div>` : ''}
               </div>
+              <div class="weight-row">
+                <label>Weight</label>
+                <input type="text" class="weight-input" data-widx="${i}" placeholder="e.g. 135 lbs" value="${weight}">
+              </div>
               ${ex.notes ? `<div class="exercise-note">${ex.notes}</div>` : ''}
             </div>
           </div>`
@@ -226,6 +307,34 @@
 
       html += `</div>`
       container.innerHTML = html
+
+      // Bind click-to-complete (on the number badge area)
+      container.querySelectorAll('.exercise-num[data-toggle]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const idx = parseInt(el.dataset.toggle)
+          toggleComplete(exercises[idx], dateStr, programWeek, dayNum)
+        })
+      })
+
+      // Also allow clicking the card itself (but not the weight input)
+      container.querySelectorAll('.exercise-card').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.weight-input')) return
+          const idx = parseInt(el.dataset.idx)
+          toggleComplete(exercises[idx], dateStr, programWeek, dayNum)
+        })
+      })
+
+      // Bind weight inputs
+      container.querySelectorAll('.weight-input').forEach(input => {
+        input.addEventListener('input', () => {
+          const idx = parseInt(input.dataset.widx)
+          saveWeight(exercises[idx], dateStr, programWeek, dayNum, input.value)
+        })
+        // Prevent card click when focusing input
+        input.addEventListener('click', e => e.stopPropagation())
+      })
     }
 
     // Load workouts from Google Sheet
@@ -261,9 +370,9 @@
 
     initTheme()
 
-    // History button (placeholder)
+    // History button
     document.getElementById('historyBtn').addEventListener('click', () => {
-      import('./js/shared.js').then(m => m.showToast('Workout history coming soon'))
+      window.location.href = 'history.html'
     })
 
     // Sample data for demo

@@ -481,6 +481,156 @@ h3 { font-size: 1rem; }
   font-style: italic;
 }
 
+/* --- Exercise Card: Completed State --- */
+.exercise-card.completed {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.exercise-card.completed .exercise-num {
+  background: var(--green-500);
+}
+
+.exercise-card.completed .exercise-name {
+  text-decoration: line-through;
+  color: var(--grey-400);
+}
+
+.exercise-card:not(.completed) {
+  cursor: pointer;
+}
+
+/* --- Weight Input --- */
+.weight-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.weight-row label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--grey-400);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.weight-input {
+  width: 80px;
+  padding: 6px 10px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.weight-input:focus {
+  border-color: var(--primary);
+}
+
+.weight-input::placeholder {
+  color: var(--grey-400);
+  font-weight: 400;
+}
+
+/* --- Completion Badge Active --- */
+.completion-badge.all-done {
+  border-color: var(--green-500);
+  color: var(--green-500);
+}
+
+/* --- Checkmark SVG in completed num --- */
+.exercise-num .check-svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* --- History Page --- */
+.history-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  padding: 8px 0;
+}
+
+.history-back:hover {
+  color: var(--primary);
+}
+
+.history-date-group {
+  margin-bottom: 24px;
+}
+
+.history-date-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.history-workout-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--grey-900);
+  margin-bottom: 8px;
+}
+
+.history-exercise {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-exercise:last-child {
+  border-bottom: none;
+}
+
+.history-check {
+  width: 20px;
+  height: 20px;
+  color: var(--green-500);
+  flex-shrink: 0;
+}
+
+.history-exercise-name {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.history-exercise-weight {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.history-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--grey-400);
+}
+
 /* --- Rest Day --- */
 .rest-day {
   text-align: center;
