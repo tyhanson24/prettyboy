@@ -160,6 +160,16 @@
       <div class="flex flex-col gap-12 mt-16">`
 
       exercises.forEach((ex, i) => {
+        const setCount = parseInt(ex.sets) || 0
+        let weightHtml = ''
+        if (setCount > 0) {
+          weightHtml = '<div class="weight-sets">'
+          for (let s = 0; s < setCount; s++) {
+            weightHtml += `<div class="weight-set-item"><label>S${s + 1}</label><input type="text" class="weight-input" placeholder="lbs"></div>`
+          }
+          weightHtml += '</div>'
+        }
+
         html += `<div class="exercise-card">
           <div class="exercise-num">${String(i + 1).padStart(2, '0')}</div>
           <div class="exercise-body">
@@ -170,6 +180,7 @@
               ${ex.reps ? `<div class="exercise-stat"><label>Reps</label><span>${ex.reps}</span></div>` : ''}
               ${ex.rest ? `<div class="exercise-stat"><label>Rest</label><span>${ex.rest}</span></div>` : ''}
             </div>
+            ${weightHtml}
             ${ex.notes ? `<div class="exercise-note">${ex.notes}</div>` : ''}
           </div>
         </div>`

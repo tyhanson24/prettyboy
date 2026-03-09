@@ -87,11 +87,21 @@
             <div class="card">`
 
         exercises.forEach(ex => {
+          let weightDisplay = ''
+          if (ex.weight) {
+            try {
+              const arr = JSON.parse(ex.weight)
+              if (Array.isArray(arr)) {
+                const filled = arr.filter(w => w)
+                if (filled.length > 0) weightDisplay = filled.join(' / ')
+              }
+            } catch { weightDisplay = ex.weight }
+          }
           html += `
               <div class="history-exercise">
                 ${ex.completed ? checkSvg : xSvg}
                 <span class="history-exercise-name${ex.completed ? '' : '" style="color:var(--grey-400)'}">${ex.exercise_name}</span>
-                ${ex.weight ? `<span class="history-exercise-weight">${ex.weight}</span>` : ''}
+                ${weightDisplay ? `<span class="history-exercise-weight">${weightDisplay}</span>` : ''}
               </div>`
         })
 

@@ -205,21 +205,46 @@
       renderWorkout()
     }
 
-    let weightSaveTimer = null
-    function saveWeight(exercise, dateStr, programWeek, dayNum, weight) {
-      clearTimeout(weightSaveTimer)
-      weightSaveTimer = setTimeout(async () => {
-        const order = exercise.order
+    function parseSetCount(setsStr) {
+      if (!setsStr) return 0
+      const n = parseInt(setsStr)
+      return isNaN(n) ? 0 : n
+    }
+
+    function parseWeights(weightStr, setCount) {
+      try {
+        const arr = JSON.parse(weightStr || '[]')
+        if (Array.isArray(arr)) {
+          while (arr.length < setCount) arr.push('')
+          return arr.slice(0, setCount)
+        }
+      } catch {}
+      // Legacy: single string value → fill all sets
+      if (weightStr) return Array(setCount).fill(weightStr)
+      return Array(setCount).fill('')
+    }
+
+    let weightSaveTimers = {}
+    function saveWeight(exercise, dateStr, programWeek, dayNum, setIndex, value) {
+      const order = exercise.order
+      const timerKey = `${order}-${setIndex}`
+      clearTimeout(weightSaveTimers[timerKey])
+      weightSaveTimers[timerKey] = setTimeout(async () => {
         const existing = dayLogs[order]
+        const setCount = parseSetCount(exercise.sets)
+        let weights = parseWeights(existing?.weight, setCount)
+        weights[setIndex] = value
+        const weightJson = JSON.stringify(weights)
+
         if (existing) {
-          await supabase.from('exercise_logs').update({ weight, updated_at: new Date().toISOString() })
+          await supabase.from('exercise_logs').update({ weight: weightJson, updated_at: new Date().toISOString() })
             .eq('id', existing.id)
-          dayLogs[order] = { ...existing, weight }
+          dayLogs[order] = { ...existing, weight: weightJson }
         } else {
           const log = {
             user_id: userId, log_date: dateStr, program_week: programWeek,
             day_num: dayNum, exercise_order: order, exercise_name: exercise.exercise,
-            completed: false, weight
+            completed: false, weight: weightJson
           }
           const { data } = await supabase.from('exercise_logs').insert(log).select().single()
           if (data) dayLogs[order] = data
@@ -283,7 +308,21 @@
       exercises.forEach((ex, i) => {
         const log = dayLogs[ex.order]
         const done = log?.completed
-        const weight = log?.weight || ''
+        const setCount = parseSetCount(ex.sets)
+        const weights = parseWeights(log?.weight, setCount)
+
+        let weightHtml = ''
+        if (setCount > 0) {
+          weightHtml = `<div class="weight-sets">`
+          for (let s = 0; s < setCount; s++) {
+            weightHtml += `
+              <div class="weight-set-item">
+                <label>S${s + 1}</label>
+                <input type="text" class="weight-input" data-widx="${i}" data-set="${s}" placeholder="lbs" value="${weights[s] || ''}">
+              </div>`
+          }
+          weightHtml += `</div>`
+        }
 
         html += `
           <div class="exercise-card${done ? ' completed' : ''}" data-idx="${i}">
@@ -296,10 +335,7 @@
                 ${ex.reps ? `<div class="exercise-stat"><label>Reps</label><span>${ex.reps}</span></div>` : ''}
                 ${ex.rest ? `<div class="exercise-stat"><label>Rest</label><span>${ex.rest}</span></div>` : ''}
               </div>
-              <div class="weight-row">
-                <label>Weight</label>
-                <input type="text" class="weight-input" data-widx="${i}" placeholder="e.g. 135 lbs" value="${weight}">
-              </div>
+              ${weightHtml}
               ${ex.notes ? `<div class="exercise-note">${ex.notes}</div>` : ''}
             </div>
           </div>`
@@ -326,13 +362,13 @@
         })
       })
 
-      // Bind weight inputs
+      // Bind weight inputs (per-set)
       container.querySelectorAll('.weight-input').forEach(input => {
         input.addEventListener('input', () => {
           const idx = parseInt(input.dataset.widx)
-          saveWeight(exercises[idx], dateStr, programWeek, dayNum, input.value)
+          const setIdx = parseInt(input.dataset.set)
+          saveWeight(exercises[idx], dateStr, programWeek, dayNum, setIdx, input.value)
         })
-        // Prevent card click when focusing input
         input.addEventListener('click', e => e.stopPropagation())
       })
     }

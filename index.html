@@ -117,6 +117,7 @@
 
       if (!name) return showToast('Enter your name', 'error')
       if (!email) return showToast('Enter your email', 'error')
+      if (!email.endsWith('.com')) return showToast('Enter a valid .com email address', 'error')
       if (pw.length < 6) return showToast('Password must be 6+ characters', 'error')
 
       showStep(step2)
