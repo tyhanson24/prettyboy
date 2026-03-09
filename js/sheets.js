@@ -71,12 +71,12 @@ export function getDayNumber(schedule, weekdayName) {
 }
 
 // Calculate which program week we're in based on start date
-export function getProgramWeek(startDate) {
+export function getProgramWeek(startDate, referenceDate) {
   const start = new Date(startDate)
-  const now = new Date()
+  const ref = referenceDate ? new Date(referenceDate) : new Date()
   start.setHours(0, 0, 0, 0)
-  now.setHours(0, 0, 0, 0)
-  const diff = Math.floor((now - start) / (7 * 24 * 60 * 60 * 1000))
+  ref.setHours(0, 0, 0, 0)
+  const diff = Math.floor((ref - start) / (7 * 24 * 60 * 60 * 1000))
   return Math.max(1, diff + 1)
 }
 

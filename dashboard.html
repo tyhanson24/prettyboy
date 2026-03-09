@@ -256,7 +256,7 @@
       const container = document.getElementById('workoutContent')
       const dayName = DAY_NAMES[selectedDate.getDay()]
       const dayNum = getDayNumber(schedule, dayName)
-      const programWeek = getProgramWeek(startDate)
+      const programWeek = getProgramWeek(startDate, selectedDate)
       const maxWeek = getMaxWeek(allWorkouts)
       const dateStr = selectedDate.toISOString().split('T')[0]
 
